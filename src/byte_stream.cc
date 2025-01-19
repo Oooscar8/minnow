@@ -6,19 +6,10 @@ ByteStream::ByteStream( uint64_t capacity ) : capacity_( capacity ) {}
 
 void Writer::push( string data )
 {
-  uint64_t remaining_data = data.size();
-
-  while ( remaining_data > 0 ) {
-    while ( available_capacity() ) {
-      if (has_error()) {
-        return;
-      }
-    }
-    uint64_t to_write = min( available_capacity(), remaining_data );
-    buffer_.append( data.substr( data.size() - remaining_data, to_write ) );
-    bytes_pushed_ += to_write;
-    remaining_data -= to_write;
-  }
+  // Push data to the buffer, but only as much as available capacity allows.
+  uint64_t to_write = min( available_capacity(), data.size() );
+  buffer_.append( data, 0, to_write );
+  bytes_pushed_ += to_write;
 }
 
 void Writer::close()
@@ -49,24 +40,15 @@ string_view Reader::peek() const
 
 void Reader::pop( uint64_t len )
 {
-  uint64_t remaining_data = len;
+  // Pop as much data as possible from the buffer if len is greater than the amount of data available.
+  uint64_t to_read = min( bytes_buffered(), len );
+  read_index_ += to_read;
+  bytes_popped_ += to_read;
 
-  while ( remaining_data > 0 ) {
-    while ( bytes_buffered() ) {
-      if (has_error()) {
-        return;
-      }
-    }
-    uint64_t to_read = min( bytes_buffered(), remaining_data );
-    read_index_ += to_read;
-    remaining_data -= to_read;
-    bytes_popped_ += to_read;
-
-    // When more than half of the buffer is read, shrink it to avoid unnecessary memory usage.
-    if ( read_index_ >= buffer_.size() / 2 ) {
-      buffer_ = buffer_.substr( read_index_ );
-      read_index_ = 0;
-    }
+  // When more than half of the buffer is read, shrink it to avoid unnecessary memory usage.
+  if ( read_index_ >= buffer_.size() / 2 ) {
+    buffer_ = buffer_.substr( read_index_ );
+    read_index_ = 0;
   }
 }
 
