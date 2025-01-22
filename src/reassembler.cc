@@ -7,20 +7,32 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
 {
   debug( "unimplemented insert({}, {}, {}) called", first_index, data, is_last_substring );
 
-  if ( !within_available_capacity( first_index ) && !within_available_capacity( first_index + data.size() - 1 ) )
+  if ( data.empty() && is_last_substring && first_index == next_byte_index() ) {
+    get_writer().close();
     return;
-
-  uint64_t insert_key = within_available_capacity( first_index ) ? first_index : next_byte_index();
-
-  unassembled_substrings_[insert_key] = data.substr( 0, min( data.length(), available_capacity() ) );
-  merge_substrings();
-  if ( unassembled_substrings_.begin()->first == next_byte_index() ) {
-    output_writer_.push( unassembled_substrings_.begin()->second );
-    unassembled_substrings_.erase( unassembled_substrings_.begin() );
   }
 
   if ( is_last_substring ) {
-    output_writer_.close();
+    last_byte_ = first_index + data.length() - 1;
+  }
+
+  // At least one byte of data is available to insert
+  if ( first_index < next_byte_index() + available_capacity() && first_index + data.length() > next_byte_index() ) {
+    uint64_t insert_key = ( first_index >= next_byte_index() ) ? first_index : next_byte_index();
+
+    unassembled_substrings_.insert(
+      make_pair( insert_key,
+                 data.substr( insert_key - first_index,
+                              min( data.length(), next_byte_index() + available_capacity() - insert_key ) ) ) );
+    merge_substrings();
+    if ( unassembled_substrings_.begin()->first == next_byte_index() ) {
+      get_writer().push( unassembled_substrings_.begin()->second );
+      if ( unassembled_substrings_.begin()->first + unassembled_substrings_.begin()->second.length() - 1
+           == last_byte_ ) {
+        get_writer().close();
+      }
+      unassembled_substrings_.erase( unassembled_substrings_.begin() );
+    }
   }
 }
 

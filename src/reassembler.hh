@@ -7,7 +7,7 @@ class Reassembler
 {
 public:
   // Construct Reassembler to write into given ByteStream.
-  explicit Reassembler( ByteStream&& output ) : output_( std::move( output ) ), output_writer_( output_.writer() ), capacity_( output_writer_.available_capacity() ) {}
+  explicit Reassembler( ByteStream&& output ) : output_( std::move( output ) ), capacity_( writer().available_capacity() ) {}
 
   /*
    * Insert a new substring to be reassembled into a ByteStream.
@@ -44,17 +44,17 @@ public:
 
 private:
   ByteStream output_;
-  Writer output_writer_;
   uint64_t capacity_;
-  std::map<uint64_t, std::string> unassembled_substrings_ {}; // substrings that buffer in the reassembler waiting to be written to the ByteStream
+  uint64_t last_byte_ = -1; // index of last byte written to the ByteStream
+  std::multimap<uint64_t, std::string> unassembled_substrings_ {}; // substrings that buffer in the reassembler waiting to be written to the ByteStream
 
-  uint64_t available_capacity() const { return output_writer_.available_capacity(); }; // How many bytes can be buffered in the Reassembler/ByteStream?
+  Writer& get_writer() { return output_.writer(); }; // get the writer 
 
-  uint64_t next_byte_index() const { return output_writer_.bytes_pushed(); };  // index of next byte to be written to ByteStream
+  uint64_t available_capacity() const { return writer().available_capacity(); }; // How many bytes can be buffered in the Reassembler/ByteStream?
+
+  uint64_t next_byte_index() const { return writer().bytes_pushed(); };  // index of next byte to be written to ByteStream
 
   uint64_t first_unpopped_index() const { return next_byte_index() + available_capacity() - capacity_; }; // index of first byte that hasn't been popped from the ByteStream yet
-
-  bool within_available_capacity( uint64_t index ) const { return index >= next_byte_index() && index < next_byte_index() + available_capacity(); }; // is index within the available capacity of the Reassembler/ByteStream?
 
   void merge_substrings(); // merge overlapping/adjacent substrings in unassembled_substrings_
 };
