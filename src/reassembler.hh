@@ -45,8 +45,10 @@ public:
 private:
   ByteStream output_;
   uint64_t capacity_;
-  uint64_t last_byte_ = -1; // index of last byte written to the ByteStream
-  std::multimap<uint64_t, std::string> unassembled_substrings_ {}; // substrings that buffer in the reassembler waiting to be written to the ByteStream
+  // index of last byte written to the ByteStream
+  uint64_t last_byte_ = -1; 
+  // out-of-order substrings that buffer in the reassembler's internal storage waiting to be written to the ByteStream
+  std::multimap<uint64_t, std::string> unassembled_substrings_ {}; 
 
   Writer& get_writer() { return output_.writer(); }; // get the writer 
 
@@ -54,7 +56,5 @@ private:
 
   uint64_t next_byte_index() const { return writer().bytes_pushed(); };  // index of next byte to be written to ByteStream
 
-  uint64_t first_unpopped_index() const { return next_byte_index() + available_capacity() - capacity_; }; // index of first byte that hasn't been popped from the ByteStream yet
-
-  void merge_substrings(); // merge overlapping/adjacent substrings in unassembled_substrings_
+  void merge_substrings(); // merge overlapping/adjacent substrings in the Reassembler's internal storage
 };

@@ -5,28 +5,36 @@ using namespace std;
 
 void Reassembler::insert( uint64_t first_index, string data, bool is_last_substring )
 {
-  debug( "unimplemented insert({}, {}, {}) called", first_index, data, is_last_substring );
+  debug( "insert({}, {}, {}) called", first_index, data, is_last_substring );
 
+  // If data is empty and all previous substrings have been inserted, we are done
   if ( data.empty() && is_last_substring && first_index == next_byte_index() ) {
     get_writer().close();
     return;
   }
 
+  // Update last_byte_ if this is the last substring
   if ( is_last_substring ) {
     last_byte_ = first_index + data.length() - 1;
   }
 
   // At least one byte of data is available to insert
   if ( first_index < next_byte_index() + available_capacity() && first_index + data.length() > next_byte_index() ) {
+    // Calculate the inserted key
     uint64_t insert_key = ( first_index >= next_byte_index() ) ? first_index : next_byte_index();
-
+    // Insert only the bytes within the available capacity
     unassembled_substrings_.insert(
       make_pair( insert_key,
                  data.substr( insert_key - first_index,
                               min( data.length(), next_byte_index() + available_capacity() - insert_key ) ) ) );
+
+    // Merge overlapping/adjacent substrings in the Reassembler's internal storage
     merge_substrings();
+
+    // If next bytes are available, push these to the ByteStream
     if ( unassembled_substrings_.begin()->first == next_byte_index() ) {
       get_writer().push( unassembled_substrings_.begin()->second );
+      // Check if we have pushed the last byte of the stream
       if ( unassembled_substrings_.begin()->first + unassembled_substrings_.begin()->second.length() - 1
            == last_byte_ ) {
         get_writer().close();
@@ -40,7 +48,7 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
 // This function is for testing only; don't add extra state to support it.
 uint64_t Reassembler::count_bytes_pending() const
 {
-  debug( "unimplemented count_bytes_pending() called" );
+  debug( "count_bytes_pending() called" );
 
   uint64_t count = 0;
   for ( auto it = unassembled_substrings_.begin(); it != unassembled_substrings_.end(); ++it ) {
@@ -49,6 +57,7 @@ uint64_t Reassembler::count_bytes_pending() const
   return count;
 }
 
+// Merge overlapping/adjacent substrings in the Reassembler's internal storage
 void Reassembler::merge_substrings()
 {
   if ( unassembled_substrings_.size() <= 1 )
