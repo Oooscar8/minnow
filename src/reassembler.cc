@@ -8,7 +8,7 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
   debug( "insert({}, {}, {}) called", first_index, data, is_last_substring );
 
   // If data is empty and all previous substrings have been inserted, we are done
-  if ( data.empty() && is_last_substring && first_index == next_byte_index() ) {
+  if ( data.empty() && is_last_substring ) {
     get_writer().close();
     return;
   }

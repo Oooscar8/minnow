@@ -5,6 +5,8 @@
 
 class Reassembler
 {
+  friend class TCPReceiver;
+  
 public:
   // Construct Reassembler to write into given ByteStream.
   explicit Reassembler( ByteStream&& output ) : output_( std::move( output ) ), capacity_( writer().available_capacity() ) {}
@@ -46,15 +48,17 @@ private:
   ByteStream output_;
   uint64_t capacity_;
   // index of last byte written to the ByteStream
-  uint64_t last_byte_ = -1; 
+  uint64_t last_byte_ = UINT64_MAX; 
   // out-of-order substrings that buffer in the reassembler's internal storage waiting to be written to the ByteStream
-  std::multimap<uint64_t, std::string> unassembled_substrings_ {}; 
+  std::multimap<uint64_t, std::string> unassembled_substrings_ {};
+  bool SYN = false;    // Whether the TCP Receiver has received a SYN flag
+  bool FIN = false;    // Whether the Reassembler has assembled the last byte of the stream with a FIN flag
 
   Writer& get_writer() { return output_.writer(); }; // get the writer 
 
   uint64_t available_capacity() const { return writer().available_capacity(); }; // How many bytes can be buffered in the Reassembler/ByteStream?
 
-  uint64_t next_byte_index() const { return writer().bytes_pushed(); };  // index of next byte to be written to ByteStream
+  uint64_t next_byte_index() const { return (writer().bytes_pushed() + SYN + FIN); };  // index of next byte to be written to ByteStream
 
   void merge_substrings(); // merge overlapping/adjacent substrings in the Reassembler's internal storage
 };

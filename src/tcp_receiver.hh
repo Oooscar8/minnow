@@ -27,4 +27,6 @@ public:
 
 private:
   Reassembler reassembler_;
+  Wrap32 zero_point_ { 0 };
+  bool FIN = false;    // Whether the TCP Receiver has received a FIN flag
 };
