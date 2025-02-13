@@ -93,11 +93,14 @@ private:
   uint64_t initial_RTO_ms_;
   RetransmissionTimer timer_;
   uint64_t next_seqno_ {};    // The next sequence number to be sent
+  uint64_t last_sent_seqno_ {};    // The last sequence number sent
   uint64_t last_ackno_ {};    // The last ACK number received, also the left edge of the sender's window
   uint64_t rwindow_ {};    // The right edge of the sender's window
   uint64_t sender_window_size_ = 1;    // The sender's window size
   uint64_t receiver_window_size_ = 1;    // The receiver's window size
   uint64_t consecutive_retransmissions_ {};
+  bool SYN {};    // Whether the TCPSender has sent SYN flag
+  bool FIN {};    // Whether the TCPSender has sent FIN flag
 
   std::map<uint64_t, TCPSenderMessage> outstanding_segments_ {};
 };

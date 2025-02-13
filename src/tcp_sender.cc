@@ -30,26 +30,57 @@ void TCPSender::push( const TransmitFunction& transmit )
 {
   // debug( "unimplemented push() called" );
 
+  if ( FIN )
+    return;
+
   TCPSenderMessage msg;
 
-  size_t payload_size
-    = min( min( (uint64_t)TCPConfig::MAX_PAYLOAD_SIZE, sender_window_size_ ), reader().bytes_buffered() );
+  size_t payload_size;
+  if ( receiver_window_size_ == 0 ) {
+    // If the receiver has announced a zero-size window, we should pretend like the window size is one.
+    payload_size = min( (uint64_t)1, reader().bytes_buffered() );
+  } else {
+    if ( sender_window_size_ == 0 )
+      return;
+    payload_size
+      = min( min( (uint64_t)TCPConfig::MAX_PAYLOAD_SIZE, sender_window_size_ ), reader().bytes_buffered() );
+  }
+
   msg.payload = reader().peek().substr( 0, payload_size );
   if ( next_seqno_ == 0 ) {
     msg.SYN = true;
+    SYN = true;
+    FIN = false;
   }
   msg.seqno = Wrap32::wrap( next_seqno_, isn_ );
-  reader().pop( payload_size );
-  if ( reader().is_finished() ) {
-    msg.FIN = true;
+  if ( writer().is_closed() ) {
+    last_sent_seqno_ = SYN + reader().bytes_popped() + reader().bytes_buffered() - 1;
+    if ( next_seqno_ + msg.sequence_length() - 1 >= last_sent_seqno_ ) {
+      // This is the last segment to be sent.
+      msg.FIN = true;
+      FIN = true;
+    }
   }
   if ( input_.has_error() ) {
     msg.RST = true;
   }
 
+  if ( msg.sequence_length() == 0 ) {
+    return;
+  }
+
+  debug( "pushed message with seqno = {}, SYN = {}, FIN = {}, RST = {}, sequence length = {}",
+         next_seqno_,
+         msg.SYN,
+         msg.FIN,
+         msg.RST,
+         msg.sequence_length() );
+
   // Add the segment to the outstanding segments map and update the next sequence number.
   outstanding_segments_[next_seqno_] = msg;
-  next_seqno_ = reader().bytes_popped();
+  reader().pop( payload_size );
+  next_seqno_ = reader().bytes_popped() + SYN + FIN;
+  sender_window_size_ = rwindow_ - next_seqno_ + 1;
 
   transmit( msg );
   if ( msg.sequence_length() > 0 && !timer_.is_running() ) {
@@ -67,6 +98,8 @@ TCPSenderMessage TCPSender::make_empty_message() const
   if ( input_.has_error() ) {
     msg.RST = true;
   }
+
+  debug( "made empty message with seqno = {}, RST = {}", next_seqno_, msg.RST );
 
   return msg;
 }
@@ -92,7 +125,7 @@ void TCPSender::receive( const TCPReceiverMessage& msg )
   // Remove any segments that have been acknowledged from the outstanding segments map.
   auto it = outstanding_segments_.begin();
   while ( it != outstanding_segments_.end() ) {
-    if ( it->second.seqno.unwrap( isn_, last_ackno_ ) + it->second.sequence_length() <= last_ackno_ ) {
+    if ( it->first + it->second.sequence_length() <= last_ackno_ ) {
       // This segment has been acknowledged.
       it = outstanding_segments_.erase( it );
     } else {
