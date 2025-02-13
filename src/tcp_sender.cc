@@ -108,6 +108,11 @@ void TCPSender::receive( const TCPReceiverMessage& msg )
 {
   // debug( "unimplemented receive() called" );
 
+  // Ignore impossible ackno (beyond next seqno).
+  if ( msg.ackno->unwrap( isn_, last_ackno_ ) > next_seqno_ ) {
+    return;
+  }
+
   // Update the sender's and receiver's window even if we have received a duplicate ACK.
   if ( msg.ackno->unwrap( isn_, last_ackno_ ) == last_ackno_ ) {
     receiver_window_size_ = msg.window_size;
@@ -116,7 +121,7 @@ void TCPSender::receive( const TCPReceiverMessage& msg )
     return;
   }
 
-  // If we get to this point, it means we have received a new ACK message
+  // If we get to this point, it means we have received a new ACK message.
   last_ackno_ = msg.ackno->unwrap( isn_, last_ackno_ );
   receiver_window_size_ = msg.window_size;
   rwindow_ = last_ackno_ + msg.window_size - 1;
