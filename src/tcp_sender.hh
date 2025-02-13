@@ -101,6 +101,7 @@ private:
   uint64_t consecutive_retransmissions_ {};
   bool SYN {};    // Whether the TCPSender has sent SYN flag
   bool FIN {};    // Whether the TCPSender has sent FIN flag
+  bool zero_windowsize_received_ {};    // Whether the TCPSender has received a zero window size from the receiver
 
   std::map<uint64_t, TCPSenderMessage> outstanding_segments_ {};
 };
