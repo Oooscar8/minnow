@@ -5,7 +5,7 @@ using namespace std;
 
 void Reassembler::insert( uint64_t first_index, string data, bool is_last_substring )
 {
-  debug( "insert({}, {}, {}) called", first_index, data, is_last_substring );
+  // debug( "insert({}, {}, {}) called", first_index, data, is_last_substring );
 
   // If data is empty and all previous substrings have been inserted, we are done
   if ( data.empty() && is_last_substring ) {
@@ -48,7 +48,7 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
 // This function is for testing only; don't add extra state to support it.
 uint64_t Reassembler::count_bytes_pending() const
 {
-  debug( "count_bytes_pending() called" );
+  // debug( "count_bytes_pending() called" );
 
   uint64_t count = 0;
   for ( auto it = unassembled_substrings_.begin(); it != unassembled_substrings_.end(); ++it ) {

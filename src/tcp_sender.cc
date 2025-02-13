@@ -75,12 +75,12 @@ void TCPSender::push( const TransmitFunction& transmit )
       return;
     }
 
-    debug( "pushed message with seqno = {}, SYN = {}, FIN = {}, RST = {}, sequence length = {}",
-           next_seqno_,
-           msg.SYN,
-           msg.FIN,
-           msg.RST,
-           msg.sequence_length() );
+    // debug( "pushed message with seqno = {}, SYN = {}, FIN = {}, RST = {}, sequence length = {}",
+    //        next_seqno_,
+    //        msg.SYN,
+    //        msg.FIN,
+    //        msg.RST,
+    //        msg.sequence_length() );
 
     // Add the segment to the outstanding segments map and update the next sequence number.
     outstanding_segments_[next_seqno_] = msg;
@@ -112,7 +112,7 @@ TCPSenderMessage TCPSender::make_empty_message() const
     msg.RST = true;
   }
 
-  debug( "made empty message with seqno = {}, RST = {}", next_seqno_, msg.RST );
+  // debug( "made empty message with seqno = {}, RST = {}", next_seqno_, msg.RST );
 
   return msg;
 }
@@ -121,10 +121,10 @@ void TCPSender::receive( const TCPReceiverMessage& msg )
 {
   // debug( "unimplemented receive() called" );
 
-  debug( "received message with ackno = {}, window size = {}, RST = {}",
-         msg.ackno->unwrap( isn_, last_ackno_ ),
-         msg.window_size,
-         msg.RST );
+  // debug( "received message with ackno = {}, window size = {}, RST = {}",
+  //        msg.ackno->unwrap( isn_, last_ackno_ ),
+  //        msg.window_size,
+  //        msg.RST );
 
   if ( msg.RST ) {
     input_.set_error();
