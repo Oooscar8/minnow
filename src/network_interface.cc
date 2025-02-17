@@ -36,9 +36,34 @@ void NetworkInterface::send_datagram( const InternetDatagram& dgram, const Addre
 
   EthernetFrame eframe;
 
-  eframe.header.type = EthernetHeader::TYPE_IPv4;
+  // If the destination Ethernet address is already known, create a Ethernet frame and send it right away
+  if ( getMapping( next_hop.ipv4_numeric(), eframe.header.dst ) ) {
+    // Set up the Ethernet frame header
+    eframe.header.type = EthernetHeader::TYPE_IPv4;
+    eframe.header.src = ethernet_address_;
 
-  transmit( eframe );
+    // Set up the Ethernet frame payload to be the serialized datagram
+    Serializer serializer;
+    dgram.serialize( serializer );
+    eframe.payload = serializer.finish();
+
+    // Send the Ethernet frame
+    transmit( eframe );
+    return;
+  }
+
+  // The destination Ethernet address is unknown,
+  // broadcast an ARP request and queue the datagram
+  EthernetFrame arp_request = create_arp_message( ARPMessage::OPCODE_REQUEST,
+                                                  ethernet_address_,
+                                                  ip_address_.ipv4_numeric(),
+                                                  ETHERNET_BROADCAST,
+                                                  next_hop.ipv4_numeric() );
+  if ( can_send_arp_request( next_hop.ipv4_numeric() ) ) {
+    transmit( arp_request );
+    update_arp_request_time( next_hop.ipv4_numeric() );
+  }
+  datagrams_received_.push( dgram );
 }
 
 //! \param[in] frame the incoming Ethernet frame
@@ -59,6 +84,6 @@ void NetworkInterface::tick( const size_t ms_since_last_tick )
   debug( "unimplemented tick({}) called", ms_since_last_tick );
 
   time_elapsed_ += ms_since_last_tick;
-  
+
   remove_expired_mappings();
 }
