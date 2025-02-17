@@ -57,13 +57,13 @@ void NetworkInterface::send_datagram( const InternetDatagram& dgram, const Addre
   EthernetFrame arp_request = create_arp_message( ARPMessage::OPCODE_REQUEST,
                                                   ethernet_address_,
                                                   ip_address_.ipv4_numeric(),
-                                                  ETHERNET_BROADCAST,
+                                                  { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
                                                   next_hop.ipv4_numeric() );
   if ( can_send_arp_request( next_hop.ipv4_numeric() ) ) {
     transmit( arp_request );
     update_arp_request_time( next_hop.ipv4_numeric() );
   }
-  datagrams_received_.push( dgram );
+  datagrams_queued_.insert( make_pair( next_hop.ipv4_numeric(), dgram ) );
 }
 
 //! \param[in] frame the incoming Ethernet frame
@@ -72,9 +72,47 @@ void NetworkInterface::recv_frame( EthernetFrame frame )
   debug( "unimplemented recv_frame called" );
   (void)frame;
 
-  if ( frame == ARPMessage ) {
-    ARPMessage ARP_reply;
-    ARP_reply.sender_ip_address = ip_address_.ipv4_numeric();
+  // If inbound frame is IPv4, parse the payload as an InternetDatagram
+  // and if successful, push the resulting datagram to the datagrams_received_ queue
+  if ( frame.header.type == EthernetHeader::TYPE_IPv4 ) {
+    Parser parser( frame.payload );
+
+    InternetDatagram dgram;
+    dgram.parse( parser );
+    if ( parser.has_error() )
+      return;
+    datagrams_received_.push( dgram );
+  }
+
+  // If the inbound frame is ARP, parse the payload as an ARPMessage
+  // an if successful, add the IP-to-Ethernet mapping to the mappings.
+  // In addition, if it's an ARP request asking for our IP address,
+  // send an appropriate ARP reply.
+  if ( frame.header.type == EthernetHeader::TYPE_ARP ) {
+    Parser parser( frame.payload );
+
+    ARPMessage arp_message;
+    arp_message.parse( parser );
+    if ( parser.has_error() )
+      return;
+    addMapping( time_elapsed_, arp_message.sender_ethernet_address, arp_message.sender_ip_address );
+    if ( arp_message.opcode == ARPMessage::OPCODE_REQUEST
+         && arp_message.target_ip_address == ip_address_.ipv4_numeric() ) {
+      EthernetFrame arp_reply = create_arp_message( ARPMessage::OPCODE_REPLY,
+                                                    ethernet_address_,
+                                                    ip_address_.ipv4_numeric(),
+                                                    arp_message.sender_ethernet_address,
+                                                    arp_message.sender_ip_address );
+      transmit( arp_reply );
+    }
+
+    // Since we have received an ARP message, we can probably send any queued datagrams
+    auto range = datagrams_queued_.equal_range( arp_message.sender_ip_address );
+    for ( auto it = range.first; it != range.second; ) {
+      InternetDatagram dgram = it->second;
+      send_datagram( dgram, Address::from_ipv4_numeric( it->first ) );
+      it = datagrams_queued_.erase( it );
+    }
   }
 }
 

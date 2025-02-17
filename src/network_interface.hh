@@ -89,6 +89,9 @@ private:
   // Datagrams that have been received
   std::queue<InternetDatagram> datagrams_received_ {};
 
+  // Datagrams that queued to learn the Ethernet address of the next hop
+  std::multimap<uint32_t, InternetDatagram> datagrams_queued_ {};
+
   uint64_t time_elapsed_ {}; // accumulated time elapsed
 
   // Define the value type as a pair of EthernetAddress and IP address.
@@ -96,7 +99,7 @@ private:
 
   // Define the map type with timestamp as key and (Ethernet, IP) pair as value.
   // This is the data structure that will be used to store all the IP-to-Ethernet mappings.
-  using NetworkMappings = std::map<uint64_t, MappingPair>;
+  using NetworkMappings = std::multimap<uint64_t, MappingPair>;
 
   NetworkMappings mappings {};
 
@@ -105,7 +108,7 @@ private:
   // Add a new IP-to-Ethernet mapping
   void addMapping( uint64_t timestamp, const EthernetAddress& eth, uint32_t ip )
   {
-    mappings[timestamp] = MappingPair( eth, ip );
+    mappings.insert( make_pair( timestamp, MappingPair( eth, ip ) ) );
   }
 
   // Get mapping by IP address
@@ -140,7 +143,11 @@ private:
                                     uint32_t target_ip )
   {
     EthernetFrame frame;
-    frame.header.dst = target_eth;
+    if (opcode == ARPMessage::OPCODE_REQUEST) {
+      frame.header.dst = ETHERNET_BROADCAST;
+    } else {
+      frame.header.dst = target_eth;
+    }
     frame.header.src = sender_eth;
     frame.header.type = EthernetHeader::TYPE_ARP;
 
