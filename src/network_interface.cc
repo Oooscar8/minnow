@@ -33,6 +33,12 @@ void NetworkInterface::send_datagram( const InternetDatagram& dgram, const Addre
   debug( "unimplemented send_datagram called" );
   (void)dgram;
   (void)next_hop;
+
+  EthernetFrame eframe;
+
+  eframe.header.type = EthernetHeader::TYPE_IPv4;
+
+  transmit( eframe );
 }
 
 //! \param[in] frame the incoming Ethernet frame
@@ -40,10 +46,19 @@ void NetworkInterface::recv_frame( EthernetFrame frame )
 {
   debug( "unimplemented recv_frame called" );
   (void)frame;
+
+  if ( frame == ARPMessage ) {
+    ARPMessage ARP_reply;
+    ARP_reply.sender_ip_address = ip_address_.ipv4_numeric();
+  }
 }
 
 //! \param[in] ms_since_last_tick the number of milliseconds since the last call to this method
 void NetworkInterface::tick( const size_t ms_since_last_tick )
 {
   debug( "unimplemented tick({}) called", ms_since_last_tick );
+
+  time_elapsed_ += ms_since_last_tick;
+  
+  remove_expired_mappings();
 }

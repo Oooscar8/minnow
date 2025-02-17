@@ -4,8 +4,18 @@
 #include "ethernet_frame.hh"
 #include "ipv4_datagram.hh"
 
+#include <map>
 #include <memory>
 #include <queue>
+
+#define MAPPING_TIMEOUT 30000    // remember the IP-to-Ethernet mapping for 30 seconds
+
+// Define the value type as a pair of EthernetAddress and IP address.
+using MappingPair = std::pair<EthernetAddress, uint32_t>;
+
+// Define the map type with timestamp as key and (Ethernet, IP) pair as value.
+// This is the data structure that will be used to store all the IP-to-Ethernet mappings.
+using NetworkMappings = std::map<uint64_t, MappingPair>;
 
 // A "network interface" that connects IP (the internet layer, or network layer)
 // with Ethernet (the network access layer, or link layer).
@@ -82,4 +92,39 @@ private:
 
   // Datagrams that have been received
   std::queue<InternetDatagram> datagrams_received_ {};
+
+  uint64_t time_elapsed_ {}; // accumulated time elapsed
+
+  NetworkMappings mappings;
+
+  // Add a new mapping
+  void addMapping( uint64_t timestamp, const EthernetAddress& eth, uint32_t ip )
+  {
+    mappings[timestamp] = MappingPair( eth, ip );
+  }
+
+  // Get mapping by IP address
+  bool getMapping( uint32_t target_ip, EthernetAddress& eth ) const
+  {
+    for ( const auto& [ts, mapping] : mappings ) {
+      if ( mapping.second == target_ip ) {
+        eth = mapping.first;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Remove expired mappings (older than 30 seconds)
+  void remove_expired_mappings()
+  {
+    // Calculate the expiration threshold
+    uint64_t expiration_threshold = time_elapsed_ - MAPPING_TIMEOUT;
+
+    // Find the first element that is not expired
+    // Since map is ordered by timestamp, we can remove all elements
+    // from beginning until we find a non-expired entry
+    auto it = mappings.lower_bound( expiration_threshold );
+    mappings.erase( mappings.begin(), it );
+  }
 };
