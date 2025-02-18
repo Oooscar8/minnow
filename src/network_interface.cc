@@ -72,6 +72,11 @@ void NetworkInterface::recv_frame( EthernetFrame frame )
   debug( "unimplemented recv_frame called" );
   (void)frame;
 
+  // Ignore any frames not destined for the network interface
+  if ( frame.header.dst != ethernet_address_ && frame.header.dst != ETHERNET_BROADCAST ) {
+    return;
+  }
+
   // If inbound frame is IPv4, parse the payload as an InternetDatagram
   // and if successful, push the resulting datagram to the datagrams_received_ queue
   if ( frame.header.type == EthernetHeader::TYPE_IPv4 ) {

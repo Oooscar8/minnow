@@ -126,6 +126,10 @@ private:
   // Remove expired mappings (older than 30 seconds)
   void remove_expired_mappings()
   {
+    if (time_elapsed_ < MAPPING_TIMEOUT) {
+      return;
+    }
+
     // Calculate the expiration threshold
     uint64_t expiration_threshold = time_elapsed_ - MAPPING_TIMEOUT;
 
