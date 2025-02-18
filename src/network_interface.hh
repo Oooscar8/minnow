@@ -91,14 +91,14 @@ private:
 
   struct QueuedDatagram
   {
-    uint32_t next_hop_ip = 0;
+    uint32_t next_hop_ip {};
     InternetDatagram dgram {};
   };
 
   // Datagrams that queued to learn the Ethernet address of the next hop
   std::multimap<uint64_t, QueuedDatagram> datagrams_queued_ {};
 
-  uint64_t time_elapsed_ {}; // accumulated time elapseds
+  uint64_t time_elapsed_ {}; // accumulated time elapsed
 
   // Define the value type as a pair of EthernetAddress and IP address.
   using MappingPair = std::pair<EthernetAddress, uint32_t>;
@@ -108,6 +108,8 @@ private:
   using NetworkMappings = std::multimap<uint64_t, MappingPair>;
 
   NetworkMappings mappings {};
+
+  std::unordered_map<uint32_t, uint64_t> last_arp_request_time_ {};
 
   // Add a new IP-to-Ethernet mapping
   void addMapping( uint64_t timestamp, const EthernetAddress& eth, uint32_t ip )
@@ -175,16 +177,17 @@ private:
 
   bool can_send_arp_request( uint32_t target_ip ) const
   {
-    // If the ARP request about the same ip address has been sent and not expired, don't send again
-    for ( const auto& [ts, qdgram] : datagrams_queued_ ) {
-      if ( qdgram.next_hop_ip == target_ip ) {
-        return false;
-      }
+    auto it = last_arp_request_time_.find( target_ip );
+    if ( it == last_arp_request_time_.end() ) {
+      return true;
     }
 
-    return true;
+    return time_elapsed_ - it->second >= ARP_REQUEST_TIMEOUT;
   }
 
+  void update_arp_request_time( uint32_t target_ip ) { last_arp_request_time_[target_ip] = time_elapsed_; }
+
+  // Drop any expired datagrams
   void drop_expired_datagrams()
   {
     // Calculate the expiration threshold

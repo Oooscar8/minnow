@@ -61,8 +61,9 @@ void NetworkInterface::send_datagram( const InternetDatagram& dgram, const Addre
                                                   next_hop.ipv4_numeric() );
   if ( can_send_arp_request( next_hop.ipv4_numeric() ) ) {
     transmit( arp_request );
+    update_arp_request_time( next_hop.ipv4_numeric() );
   }
-  struct QueuedDatagram qdgram;
+  QueuedDatagram qdgram;
   qdgram.next_hop_ip = next_hop.ipv4_numeric();
   qdgram.dgram = dgram;
   datagrams_queued_.insert( make_pair( time_elapsed_, qdgram ) );
@@ -133,9 +134,7 @@ void NetworkInterface::tick( const size_t ms_since_last_tick )
 
   time_elapsed_ += ms_since_last_tick;
 
-  // Remove expired IP-to-Ethernet mappings
   remove_expired_mappings();
 
-  // Drop queued datagrams when pending request expires
   drop_expired_datagrams();
 }
