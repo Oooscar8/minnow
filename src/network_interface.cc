@@ -61,9 +61,11 @@ void NetworkInterface::send_datagram( const InternetDatagram& dgram, const Addre
                                                   next_hop.ipv4_numeric() );
   if ( can_send_arp_request( next_hop.ipv4_numeric() ) ) {
     transmit( arp_request );
-    update_arp_request_time( next_hop.ipv4_numeric() );
   }
-  datagrams_queued_.insert( make_pair( next_hop.ipv4_numeric(), dgram ) );
+  struct QueuedDatagram qdgram;
+  qdgram.next_hop_ip = next_hop.ipv4_numeric();
+  qdgram.dgram = dgram;
+  datagrams_queued_.insert( make_pair( time_elapsed_, qdgram ) );
 }
 
 //! \param[in] frame the incoming Ethernet frame
@@ -112,11 +114,14 @@ void NetworkInterface::recv_frame( EthernetFrame frame )
     }
 
     // Since we have received an ARP message, we can probably send any queued datagrams
-    auto range = datagrams_queued_.equal_range( arp_message.sender_ip_address );
-    for ( auto it = range.first; it != range.second; ) {
-      InternetDatagram dgram = it->second;
-      send_datagram( dgram, Address::from_ipv4_numeric( it->first ) );
-      it = datagrams_queued_.erase( it );
+    auto it = datagrams_queued_.begin();
+    while ( it != datagrams_queued_.end() ) {
+      if ( it->second.next_hop_ip == arp_message.sender_ip_address ) {
+        send_datagram( it->second.dgram, Address::from_ipv4_numeric( it->second.next_hop_ip ) );
+        it = datagrams_queued_.erase( it );
+      } else {
+        ++it;
+      }
     }
   }
 }
@@ -128,5 +133,9 @@ void NetworkInterface::tick( const size_t ms_since_last_tick )
 
   time_elapsed_ += ms_since_last_tick;
 
+  // Remove expired IP-to-Ethernet mappings
   remove_expired_mappings();
+
+  // Drop queued datagrams when pending request expires
+  drop_expired_datagrams();
 }
