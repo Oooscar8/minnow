@@ -39,7 +39,7 @@ void Router::route()
   // debug( "unimplemented route() called" );
 
   size_t i = 0;
-  while ( i <= interfaces_.size() ) {
+  while ( i < interfaces_.size() ) {
     queue<InternetDatagram>& datagrams_queue = interface( i )->datagrams_received();
     while ( !datagrams_queue.empty() ) {
       InternetDatagram& dgram = datagrams_queue.front();
