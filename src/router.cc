@@ -46,8 +46,6 @@ void Router::route()
       datagrams_queue.pop();
       if ( dgram.header.ttl <= 1 ) {
         // If the TTL field is already 0, or hits 0 after the decrement, drop the datagram.
-        // debug( "Dropped datagram: ttl = {}, src = {}, dest = {}", dgram.header.ttl, dgram.header.src,
-        // dgram.header.dst );
         cerr << "DEBUG: Dropped datagram: ttl = " << static_cast<int>( dgram.header.ttl )
              << ", src = " << Address::from_ipv4_numeric( dgram.header.src ).ip()
              << ", dst = " << Address::from_ipv4_numeric( dgram.header.dst ).ip() << "\n";
@@ -60,18 +58,12 @@ void Router::route()
       size_t interface_num;
       if ( !find_longest_prefix_match( dgram.header.dst, next_hop_ip, interface_num ) ) {
         // If no route is found, drop the datagram.
-        // debug( "Dropped datagram: no route found for dst = {}", dgram.header.dst );
         cerr << "DEBUG: No route found for datagram: ttl = " << static_cast<int>( dgram.header.ttl )
              << ", src = " << Address::from_ipv4_numeric( dgram.header.src ).ip()
              << ", dst = " << Address::from_ipv4_numeric( dgram.header.dst ).ip() << "\n";
         continue;
       }
       interface( interface_num )->send_datagram( dgram, Address::from_ipv4_numeric( next_hop_ip ) );
-      // debug( "routed datagram: src = {}, dest = {}, to next hop = {} on interface {}",
-      //        dgram.header.src,
-      //        dgram.header.dst,
-      //        next_hop_ip,
-      //        interface_num );
       cerr << "DEBUG: Routed datagram: ttl = " << static_cast<int>( dgram.header.ttl )
            << ", src = " << Address::from_ipv4_numeric( dgram.header.src ).ip()
            << ", dst = " << Address::from_ipv4_numeric( dgram.header.dst ).ip()
