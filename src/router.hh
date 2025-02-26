@@ -70,6 +70,8 @@ private:
   }
 
   bool is_prefix_match( const uint32_t address, const uint32_t prefix, const uint8_t prefix_length ) const {
-    
+    uint32_t mask = 0xffffffff << ( 32 - prefix_length );
+
+    return (address & mask) == (prefix & mask);
   }
 };
