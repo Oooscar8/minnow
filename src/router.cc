@@ -54,6 +54,7 @@ void Router::route()
         continue;
       }
       dgram.header.ttl--;
+      dgram.header.compute_checksum();
 
       uint32_t next_hop_ip;
       size_t interface_num;
