@@ -49,8 +49,7 @@ private:
 
   // The router's collection of network interfaces
   std::vector<std::shared_ptr<NetworkInterface>> interfaces_ {};
-  std::map<std::pair<uint32_t, uint8_t>, std::pair<std::optional<uint32_t>, size_t>, RouteCompare>
-    routing_table_ {};
+  std::map<std::pair<uint32_t, uint8_t>, std::pair<std::optional<uint32_t>, size_t>, RouteCompare> routing_table_ {};
 
   bool find_longest_prefix_match( const uint32_t dest_ip, uint32_t& next_hop_ip, size_t& interface_num ) const
   {
