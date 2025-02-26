@@ -20,11 +20,44 @@ void Router::add_route( const uint32_t route_prefix,
        << static_cast<int>( prefix_length ) << " => " << ( next_hop.has_value() ? next_hop->ip() : "(direct)" )
        << " on interface " << interface_num << "\n";
 
-  debug( "unimplemented add_route() called" );
+  // debug( "unimplemented add_route() called" );
+
+  optional<uint32_t> next_hop_ip;
+
+  if ( !next_hop.has_value() ) {
+    next_hop_ip = nullopt;
+  } else {
+    next_hop_ip = next_hop->ipv4_numeric();
+  }
+
+  routing_table_.insert( make_pair( route_prefix, prefix_length ), make_pair( next_hop_ip, interface_num ) );
 }
 
 // Go through all the interfaces, and route every incoming datagram to its proper outgoing interface.
 void Router::route()
 {
-  debug( "unimplemented route() called" );
+  // debug( "unimplemented route() called" );
+
+  size_t i = 0;
+  while ( i <= interfaces_.size() ) {
+    queue<InternetDatagram>& datagrams_queue = interface( i )->datagrams_received();
+    while ( !datagrams_queue.empty() ) {
+      InternetDatagram& dgram = datagrams_queue.front();
+      datagrams_queue.pop();
+      if ( dgram.header.ttl <= 1 ) {
+        // If the TTL field is already 0, or hits 0 after the decrement, drop the datagram.
+        continue;
+      }
+      dgram.header.ttl--;
+
+      uint32_t next_hop_ip;
+      size_t interface_num;
+      if ( !find_longest_prefix_match( dgram.header.dst, next_hop_ip, interface_num ) ) {
+        // If no route is found, drop the datagram.
+        continue;
+      }
+      interface( interface_num )->send_datagram( dgram, Address::from_ipv4_numeric( next_hop_ip ) );
+    }
+    ++i;
+  }
 }
